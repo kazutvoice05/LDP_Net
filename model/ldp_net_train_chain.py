@@ -36,7 +36,37 @@ class LDPNetTrainChain(chainer.Chain):
         return self.loss
 
 def _ldp_net_loss(y, t, mask):
-    dtype = t.dtype
+    batchsize = t.shape[0]
     xp = chainer.cuda.cuda.get_array_module(t)
 
-    inv_valid_pixels = xp.array(1, t,dtype) / F.sum(mask.astype(dtype))
+    m = mask.reshape(batchsize, -1).astype(t.dtype)
+    y_m = y.reshape(batchsize, -1) * m
+    t_m = t.reshape(batchsize, -1) * m
+
+    diff = y_m - t_m
+    num_valid = F.sum(m, axis=1)
+
+    l2_loss = F.sum(num_valid * F.sum(F.square(diff, axis=1)))
+
+    scale_inv_loss = 0.5 * F.sum(F.square(F.sum(diff, axis=1)))
+
+    depth_loss = (
+        (l2_loss - scale_inv_loss)/ 
+        F.maximum(F.sum(F.square(num_valid)), xp.array(1, num_valid.dtype)))
+    
+    m_grad_x = xp.logical_and(
+        mask[:, :, :, 1:], mask[:, :, :, -1]).astype(t.dtype)
+    m_grad_y = xp.logical_and(
+        mask[:, :, 1:, :], mask[:, :, -1, :]).astype(t.dtype)
+    
+    y_grad_x = (y[:, :, :, 1:] - y[:, :, :, :-1])
+    y_grad_y = (y[:, :, 1:, :] - y[:, :, :-1, :])
+    
+    t_grad_x = (t[:, :, :, 1:] - t[:, :, :, :-1])
+    t_grad_y = (t[:, :, 1:, :] - t[:, :, :-1, :])
+
+    grad_loss = (
+        F.sum(m_grad_x * F.square(y_grad_x - t_grad_x)) / F.sum(m_grad_x)
+        + F.sum(m_grad_y * F.square(y_grad_y - t_grad_y)) / F.sum(m_grad_y))
+    
+    return depth_loss + grad_loss
