@@ -11,14 +11,22 @@ import numpy as np
 import chainer
 
 from model.ldp_net import LDP_Net
+from model.ldp_net_train_chain import LDPNetTrainChain
+from dataset.LDD_Transform import LDDTransform
+from dataset.Local_Depth_Dataset import LocalDepthDataset
 
+ldd = LocalDepthDataset("/Users/Kazunari/projects/datasets/LocalDepthDataset")
+ldd_transform = LDDTransform(ldd);
 
-input_data = np.asarray(np.random.rand(1, 34, 64, 64), dtype=np.float32)
+train_data = chainer.datasets.TransformDataset(ldd, ldd_transform);
 
-predictor = LDP_Net(input_channel=input_data.shape[1])
+input_channel = ldd.get_class_id_size() + 4
+ldp_net = LDP_Net(input_channel=input_channel)
 
-data = predictor(input_data)
+model = LDPNetTrainChain(ldp_net)
 
-print("data max: " + str(max(data)) + "\t" + "data min: " + str(min(data)))
+x, t, mask = train_data.get_example(0)
 
-print(data)
+loss = model(x, t, mask)
+
+print(loss)

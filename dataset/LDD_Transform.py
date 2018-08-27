@@ -1,4 +1,4 @@
-#coding: 'utf-8'
+# coding: 'utf-8'
 
 """
 LDP_Net
@@ -12,11 +12,8 @@ import sys
 import numpy as np
 
 sys.path.append(".")
-from Local_Depth_Dataset import LocalDepthDataset
 
 class LDDTransform(object):
-
-
     def __init__(self, localDepthDataset):
         self.mean_color = localDepthDataset.mean_color
         self.image_mean = localDepthDataset.image_mean
@@ -31,6 +28,7 @@ class LDDTransform(object):
         self.class_id_size = localDepthDataset.get_class_id_size()
 
     """ Resize Image and Label Depth ( Original Size -> NYU Dataset Size (640 x 480) ) """
+
     def get_resized_data(self, img, depth, roi):
         """ Resize data to Image size(640 x 480) """
         resized_img = cv2.resize(img, (self.image_size[1], self.image_size[0]), interpolation=cv2.INTER_LINEAR)
@@ -41,9 +39,9 @@ class LDDTransform(object):
                            self.image_size[0] / original_size[0])
 
         resized_roi = np.asarray([roi[0] * size_diff_ratio[0],
-                                roi[1] * size_diff_ratio[1],
-                                roi[2] * size_diff_ratio[0],
-                                roi[3] * size_diff_ratio[1]], dtype=np.float32)
+                                  roi[1] * size_diff_ratio[1],
+                                  roi[2] * size_diff_ratio[0],
+                                  roi[3] * size_diff_ratio[1]], dtype=np.float32)
 
         """ DownSampling resized data to resize to scale 1/2 """
         ds_img = cv2.resize(resized_img,
@@ -58,6 +56,7 @@ class LDDTransform(object):
         return ds_img, ds_dpt, ds_roi
 
     """ get_cropped_data """
+
     def get_predicted_region_data(self, img, depth, roi):
         y, x, h, w = self.predicted_region
 
@@ -71,7 +70,7 @@ class LDDTransform(object):
                        min(w - 1, roi[2] - x), min(h - 1, roi[3] - y)]
 
         return cropped_img, cropped_dpt, cropped_roi
-    
+
     def get_roi_data(self, img, depth, pred_depth, roi):
         roi = np.asarray(np.floor(roi), dtype=np.int)
 
@@ -96,9 +95,7 @@ class LDDTransform(object):
 
         return dst_img, dst_depth, dst_pred_depth
 
-
     # TODO : Normalize Image
-    # TODO : Make Mask
     def __call__(self, in_data):
         roi, class_id, img, pred_depth, depth = in_data
 
@@ -107,22 +104,20 @@ class LDDTransform(object):
                           roi[0] + roi[2], roi[1] + roi[3]]
 
         resized_img, resized_depth, resized_roi = self.get_resized_data(img, depth, roi_with_point)
-
-        cropped_img, cropped_depth, cropped_roi = self.get_predicted_region_data(resized_img, resized_depth, resized_roi)
-        
+        cropped_img, cropped_depth, cropped_roi = self.get_predicted_region_data(resized_img, resized_depth,
+                                                                                 resized_roi)
         roi_img, roi_depth, roi_pred_depth = self.get_roi_data(cropped_img, cropped_depth, pred_depth, cropped_roi)
-
         roi_img, roi_depth, roi_pred_depth = self.resize_to_input(roi_img, roi_depth, roi_pred_depth)
-
 
         class_vector = np.zeros([self.class_id_size, self.input_roi_size[0], self.input_roi_size[1]], dtype=np.float32)
         class_vector[class_id, :, :] = 1
 
+        # Create Mask
+        eps = np.finfo(np.float32).eps
+        mask = eps <= roi_depth
+
         x = np.expand_dims(np.concatenate([roi_img, roi_pred_depth, class_vector], axis=0), axis=0)
-        t = roi_depth
+        t = np.expand_dims(roi_depth, axis=0)
+        mask = np.expand_dims(mask, axis=0)
 
-        x = "input_x"
-        t = "Depth Ground Truth"
-        mask = "mask for calculating loss"
-
-        return roi_img, cropped_roi, img, roi_with_point
+        return x, t, mask

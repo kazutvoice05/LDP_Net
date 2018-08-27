@@ -27,46 +27,65 @@ class LDPNetTrainChain(chainer.Chain):
 
         self.y = self.ldp_net(x)
 
-        # TODO : implement loss function
-        #self.loss = self._ldp_net_loss(self.y, t, mask)
-        self.loss = 0
+        # TODO : Refine Loss Function (Now, Kaneko's Implimentation of Loss is used.)
+        self.loss = self._ldp_net_loss(self.y, t, mask)
 
         chainer.reporter.report({'train_loss': self.loss}, self)
 
         return self.loss
 
-def _ldp_net_loss(y, t, mask):
-    batchsize = t.shape[0]
-    xp = chainer.cuda.cuda.get_array_module(t)
+    def _ldp_net_loss(self, y, t, mask):
+        dtype = t.dtype
+        xp = chainer.cuda.get_array_module(t)
 
-    m = mask.reshape(batchsize, -1).astype(t.dtype)
-    y_m = y.reshape(batchsize, -1) * m
-    t_m = t.reshape(batchsize, -1) * m
+        inv_valid_pixels = xp.array(1, t.dtype) / F.sum(mask.astype(dtype))
 
-    diff = y_m - t_m
-    num_valid = F.sum(m, axis=1)
+        l2_diff = F.where(mask, F.squared_error(y, t), xp.zeros(t.shape, dtype))
+        l2_loss = F.scale(F.sum(l2_diff), inv_valid_pixels, axis=0)
 
-    l2_loss = F.sum(num_valid * F.sum(F.square(diff, axis=1)))
+        scale_inv_diff = F.where(
+            mask, F.absolute_error(y, t), xp.zeros(t.shape, dtype))
+        scale_inv_loss = F.scale(
+            F.square(F.sum(scale_inv_diff)), F.square(inv_valid_pixels), axis=0)
 
-    scale_inv_loss = 0.5 * F.sum(F.square(F.sum(diff, axis=1)))
+        scale_inv_weight = xp.array(0.5, dtype)
 
-    depth_loss = (
-        (l2_loss - scale_inv_loss)/ 
-        F.maximum(F.sum(F.square(num_valid)), xp.array(1, num_valid.dtype)))
-    
-    m_grad_x = xp.logical_and(
-        mask[:, :, :, 1:], mask[:, :, :, -1]).astype(t.dtype)
-    m_grad_y = xp.logical_and(
-        mask[:, :, 1:, :], mask[:, :, -1, :]).astype(t.dtype)
-    
-    y_grad_x = (y[:, :, :, 1:] - y[:, :, :, :-1])
-    y_grad_y = (y[:, :, 1:, :] - y[:, :, :-1, :])
-    
-    t_grad_x = (t[:, :, :, 1:] - t[:, :, :, :-1])
-    t_grad_y = (t[:, :, 1:, :] - t[:, :, :-1, :])
+        depth_loss = l2_loss - F.scale(scale_inv_loss, scale_inv_weight, axis=0)
 
-    grad_loss = (
-        F.sum(m_grad_x * F.square(y_grad_x - t_grad_x)) / F.sum(m_grad_x)
-        + F.sum(m_grad_y * F.square(y_grad_y - t_grad_y)) / F.sum(m_grad_y))
-    
-    return depth_loss + grad_loss
+        kernel_x = xp.array([[[[-1, 0, 1]]]], dtype)
+        kernel_y = xp.array([[[[-1],
+                               [0],
+                               [1]]]], dtype)
+
+        y_grad_x = F.convolution_2d(y, kernel_x)
+        y_grad_y = F.convolution_2d(y, kernel_y)
+
+        t_grad_x = F.convolution_2d(t, kernel_x)
+        t_grad_y = F.convolution_2d(t, kernel_y)
+
+        kernel_grad_x = xp.array([[[[0.5, 0, 0.5]]]], dtype)
+        kernel_grad_y = xp.array([[[[0.5],
+                                    [0],
+                                    [0.5]]]], dtype)
+
+        mask_grad_x = F.floor(F.convolution_2d(mask.astype(dtype), kernel_grad_x))
+        mask_grad_y = F.floor(F.convolution_2d(mask.astype(dtype), kernel_grad_y))
+
+        inv_valid_grads_x = xp.array(1, dtype) / F.sum(mask_grad_x)
+        inv_valid_grads_y = xp.array(1, dtype) / F.sum(mask_grad_y)
+
+        grad_diff_x = F.where(
+            F.cast(mask_grad_x, bool),
+            F.squared_error(y_grad_x, t_grad_x),
+            xp.zeros(t_grad_x.shape, dtype))
+        grad_diff_y = F.where(
+            F.cast(mask_grad_y, bool),
+            F.squared_error(y_grad_y, t_grad_y),
+            xp.zeros(t_grad_y.shape, dtype))
+
+        grad_loss_x = F.scale(F.sum(grad_diff_x), inv_valid_grads_x, axis=0)
+        grad_loss_y = F.scale(F.sum(grad_diff_y), inv_valid_grads_y, axis=0)
+
+        grad_loss = grad_loss_x + grad_loss_y
+
+        return depth_loss + grad_loss

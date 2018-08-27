@@ -26,8 +26,8 @@ from chainer.training.triggers import ManualScheduleTrigger
 from .model.ldp_net import LDP_Net
 from .model.ldp_net_train_chain import LDPNetTrainChain
 
-
 from .dataset.Local_Depth_Dataset import LocalDepthDataset
+from .dataset.LDD_Transform import LDDTransform
 
 def main():
     parser = argparse.ArgumentParser(
@@ -61,7 +61,7 @@ def main():
     # TODO : Confirm that add_hook is needed.
     optimizer.add_hook(chainer.optimizer.optimizer_hooks.WeightDecay(rate=0.0005))
 
-    train_data = TransformDataset(train_data, Transform(ldp_net))
+    train_data = TransformDataset(train_data, LDDTransform(ldp_net))
 
     train_iter = chainer.iterators.SerialIterator(train_data, args.batch_size)
     test_iter = chainer.iterators.SerialIterator(test_data, args.batch_size,
