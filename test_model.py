@@ -23,6 +23,8 @@ train_data = chainer.datasets.TransformDataset(ldd, ldd_transform);
 input_channel = ldd.get_class_id_size() + 4
 ldp_net = LDP_Net(input_channel=input_channel)
 
+improper_data = train_data.get_example(3)
+
 model = LDPNetTrainChain(ldp_net)
 
 x, t, mask = train_data.get_example(0)

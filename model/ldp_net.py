@@ -15,7 +15,7 @@ class LDP_Net(chainer.Chain):
 
     def __init__(self, f_size=64, input_channel=34, n_class=30):
 
-        initializer = chainer.initializers.HeNormal()
+        initializer = chainer.initializers.Normal()
 
         super(LDP_Net, self).__init__()
         with self.init_scope():
@@ -64,6 +64,7 @@ class LDP_Net(chainer.Chain):
     def __call__(self, x):
         batchsize = x.shape[0]
 
+        """
         h = F.relu(self.bn1_1(self.conv1_1(x)))
         h = F.relu(self.bn1_2(self.conv1_2(h)))
         d_h = self.bn1_3(self.conv1_3(h))
@@ -87,6 +88,33 @@ class LDP_Net(chainer.Chain):
         h = F.relu(self.bn5_1(self.conv5_1(h)))
         h = F.relu(self.bn5_2(self.conv5_2(h)))
         d_h = self.bn5_3(self.conv5_3(h))
+        h = F.relu(F.add(h, d_h))
+        """
+
+        h = self.conv1_1(x)
+        h = F.relu(h)
+        h = F.relu(self.conv1_2(h))
+        d_h = self.conv1_3(h)
+        h = F.relu(F.add(h, d_h))
+
+        h = F.relu(self.conv2_1(h))
+        h = F.relu(self.conv2_2(h))
+        d_h = self.conv2_3(h)
+        h = F.relu(F.add(h, d_h))
+
+        h = F.relu(self.conv3_1(h))
+        h = F.relu(self.conv3_2(h))
+        d_h = self.conv3_3(h)
+        h = F.relu(F.add(h, d_h))
+
+        h = F.relu(self.conv4_1(h))
+        h = F.relu(self.conv4_2(h))
+        d_h = self.conv4_3(h)
+        h = F.relu(F.add(h, d_h))
+
+        h = F.relu(self.conv5_1(h))
+        h = F.relu(self.conv5_2(h))
+        d_h = self.conv5_3(h)
         h = F.relu(F.add(h, d_h))
 
         h = self.conv6_1(h)

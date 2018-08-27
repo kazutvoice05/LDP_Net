@@ -24,13 +24,16 @@ class LDPNetTrainChain(chainer.Chain):
             self.ldp_net = ldp_net
 
     def __call__(self, x, t, mask):
+        x = x[0]
+        t = t[0]
+        mask = mask[0]
 
         self.y = self.ldp_net(x)
 
         # TODO : Refine Loss Function (Now, Kaneko's Implimentation of Loss is used.)
         self.loss = self._ldp_net_loss(self.y, t, mask)
 
-        chainer.reporter.report({'train_loss': self.loss}, self)
+        chainer.reporter.report({'loss': self.loss}, self)
 
         return self.loss
 

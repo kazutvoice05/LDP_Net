@@ -28,13 +28,13 @@ class LocalDepthDataset(chainer.dataset.DatasetMixin):
     sun_input_size = (228, 304)
     sun_output_size = (109, 147)
     sun_predicted_region = (11, 13, 216, 292)
-    sun_depth_scale = 10000
+    sun_depth_scale = 10000 * 10
 
     def __init__(self, data_dir, mode="train"):
         self.data_dir = data_dir
         self.mode = mode
 
-        with open(os.path.join(data_dir, "roi_list.pkl"), "rb") as f:
+        with open(os.path.join(data_dir, "fixed_roi_list.pkl"), "rb") as f:
             roi_data = pickle.load(f)
             if self.mode in ("train", "test"):
                 roi_list = roi_data[self.mode]
@@ -57,7 +57,7 @@ class LocalDepthDataset(chainer.dataset.DatasetMixin):
         img = np.asarray(img, dtype=np.float32)
 
         pred_depth_path = os.path.join(self.data_dir, self.rois[i]["pred_depth_path"])
-        pred_depth = np.load(pred_depth_path)
+        pred_depth = np.load(pred_depth_path) / 10
 
         depth_path = os.path.join(self.data_dir, self.rois[i]["depth_path"])
         depth = cv2.imread(depth_path, cv2.IMREAD_UNCHANGED)
@@ -77,5 +77,8 @@ class LocalDepthDataset(chainer.dataset.DatasetMixin):
 
         return roi, class_id, img, pred_depth, depth
 
+    def get_input_channel_size(self):
+        return len(self.class_ids) + 1 + 4  # 1~30のクラスラベル + 背景ラベル 0 + RGBD
+
     def get_class_id_size(self):
-        return len(self.class_ids) + 1  # 1~30のクラスラベルに合わせる
+        return len(self.class_ids) + 1;

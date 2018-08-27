@@ -28,7 +28,6 @@ class LDDTransform(object):
         self.class_id_size = localDepthDataset.get_class_id_size()
 
     """ Resize Image and Label Depth ( Original Size -> NYU Dataset Size (640 x 480) ) """
-
     def get_resized_data(self, img, depth, roi):
         """ Resize data to Image size(640 x 480) """
         resized_img = cv2.resize(img, (self.image_size[1], self.image_size[0]), interpolation=cv2.INTER_LINEAR)
@@ -54,8 +53,6 @@ class LDDTransform(object):
         ds_roi = resized_roi / 2
 
         return ds_img, ds_dpt, ds_roi
-
-    """ get_cropped_data """
 
     def get_predicted_region_data(self, img, depth, roi):
         y, x, h, w = self.predicted_region
@@ -107,16 +104,27 @@ class LDDTransform(object):
         cropped_img, cropped_depth, cropped_roi = self.get_predicted_region_data(resized_img, resized_depth,
                                                                                  resized_roi)
         roi_img, roi_depth, roi_pred_depth = self.get_roi_data(cropped_img, cropped_depth, pred_depth, cropped_roi)
-        roi_img, roi_depth, roi_pred_depth = self.resize_to_input(roi_img, roi_depth, roi_pred_depth)
 
-        class_vector = np.zeros([self.class_id_size, self.input_roi_size[0], self.input_roi_size[1]], dtype=np.float32)
-        class_vector[class_id, :, :] = 1
+        roi_img, roi_depth, roi_pred_depth = self.resize_to_input(roi_img, roi_depth, roi_pred_depth)
 
         # Create Mask
         eps = np.finfo(np.float32).eps
         mask = eps <= roi_depth
 
-        x = np.expand_dims(np.concatenate([roi_img, roi_pred_depth, class_vector], axis=0), axis=0)
+        def zscore(x, axis=None):
+            xmean = x.mean(axis=axis, keepdims=True)
+            xstd = np.std(x, axis=axis, keepdims=True)
+            zscore = (x - xmean) / xstd
+            return zscore
+
+        # TODO : Implement Correct Normalization Function
+        roi_img = zscore(roi_img)
+
+        class_vector = np.zeros([self.class_id_size, self.input_roi_size[0], self.input_roi_size[1]], dtype=np.float32)
+        class_vector[class_id, :, :] = 1
+
+        #x = np.expand_dims(np.concatenate([roi_img, roi_pred_depth, class_vector], axis=0), axis=0)
+        x = np.expand_dims(np.concatenate([roi_img, roi_pred_depth], axis=0), axis=0)
         t = np.expand_dims(roi_depth, axis=0)
         mask = np.expand_dims(mask, axis=0)
 
