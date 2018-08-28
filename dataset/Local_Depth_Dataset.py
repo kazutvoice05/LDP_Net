@@ -18,23 +18,22 @@ import cv2
 
 class LocalDepthDataset(chainer.dataset.DatasetMixin):
 
-    # TODO : Calc Local Depth Dataset Parameters
     # Dataset Unique Values for Transform
-    mean_color = np.array([110.328, 116.441, 125.803], np.float32)
-    image_mean = 117
-    image_stddev = 92
+    mean_color = np.array([110.43808, 116.54863, 125.91209], np.float32)
+    image_mean = 117.63293
+    image_stddev = 66.46351
     sun_image_size = (480, 640)
     sun_down_sampling_size = (240, 320)
     sun_input_size = (228, 304)
     sun_output_size = (109, 147)
     sun_predicted_region = (11, 13, 216, 292)
-    sun_depth_scale = 10000 * 10
+    sun_depth_scale = 10000
 
     def __init__(self, data_dir, mode="train"):
         self.data_dir = data_dir
         self.mode = mode
 
-        with open(os.path.join(data_dir, "fixed_roi_list.pkl"), "rb") as f:
+        with open(os.path.join(data_dir, "roi_list.pkl"), "rb") as f:
             roi_data = pickle.load(f)
             if self.mode in ("train", "test"):
                 roi_list = roi_data[self.mode]
@@ -56,29 +55,34 @@ class LocalDepthDataset(chainer.dataset.DatasetMixin):
         img = cv2.imread(img_path)
         img = np.asarray(img, dtype=np.float32)
 
+        img = np.clip(img, 0, 255)
+
+        # Subtract mean and standardize using std
+        img_std = ((img - self.image_mean) / self.image_stddev)
+
         pred_depth_path = os.path.join(self.data_dir, self.rois[i]["pred_depth_path"])
-        pred_depth = np.load(pred_depth_path) / 10
+        pred_depth = np.load(pred_depth_path)
 
         depth_path = os.path.join(self.data_dir, self.rois[i]["depth_path"])
         depth = cv2.imread(depth_path, cv2.IMREAD_UNCHANGED)
         depth = np.asarray(depth, dtype=np.float32)
         depth = depth / self.sun_depth_scale  # PNG value -> depth value (unit : meter)
 
-        return img, pred_depth, depth
+        return img_std, pred_depth, depth
 
     def get_example(self, i):
         if i >= len(self):
             raise IndexError("index is too large")
 
         roi = self.rois[i]["2DBB"]
-        class_id = self.rois[i]["class_id"]
+        class_id = self.rois[i]["class_id"] - 1  # 1 ~ n -> 0 ~ n-1
 
         img, pred_depth, depth = self.get_images(i)
 
+        mx = img.max()
+        mn = img.min()
+
         return roi, class_id, img, pred_depth, depth
 
-    def get_input_channel_size(self):
-        return len(self.class_ids) + 1 + 4  # 1~30のクラスラベル + 背景ラベル 0 + RGBD
-
     def get_class_id_size(self):
-        return len(self.class_ids) + 1;
+        return len(self.class_ids)  # classes

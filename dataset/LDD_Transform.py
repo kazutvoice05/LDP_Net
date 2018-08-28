@@ -92,7 +92,6 @@ class LDDTransform(object):
 
         return dst_img, dst_depth, dst_pred_depth
 
-    # TODO : Normalize Image
     def __call__(self, in_data):
         roi, class_id, img, pred_depth, depth = in_data
 
@@ -111,21 +110,12 @@ class LDDTransform(object):
         eps = np.finfo(np.float32).eps
         mask = eps <= roi_depth
 
-        def zscore(x, axis=None):
-            xmean = x.mean(axis=axis, keepdims=True)
-            xstd = np.std(x, axis=axis, keepdims=True)
-            zscore = (x - xmean) / xstd
-            return zscore
-
-        # TODO : Implement Correct Normalization Function
-        roi_img = zscore(roi_img)
-
         class_vector = np.zeros([self.class_id_size, self.input_roi_size[0], self.input_roi_size[1]], dtype=np.float32)
         class_vector[class_id, :, :] = 1
 
-        #x = np.expand_dims(np.concatenate([roi_img, roi_pred_depth, class_vector], axis=0), axis=0)
-        x = np.expand_dims(np.concatenate([roi_img, roi_pred_depth], axis=0), axis=0)
+        x_1 = np.expand_dims(np.concatenate([roi_img, roi_pred_depth], axis=0), axis=0)
+        x_2 = np.expand_dims(class_vector, axis=0)
         t = np.expand_dims(roi_depth, axis=0)
         mask = np.expand_dims(mask, axis=0)
 
-        return x, t, mask
+        return x_1, x_2, t, mask
