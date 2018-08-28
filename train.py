@@ -43,7 +43,7 @@ def main():
                         default="/Users/Kazunari/projects/datasets/LocalDepthDataset")
     parser.add_argument('--gpu', '-g', type=int, default=-1)
     parser.add_argument('--multi_gpu', '-m', action="store_true")
-    parser.add_argument('--lr', '-l', type=float, default=1e-3)
+    parser.add_argument('--lr', '-l', type=float, default=1e-4)
     parser.add_argument('--batch_size', '-b', type=int, default=16)
     parser.add_argument('--out', '-o', default='train_result',
                         help='Root directory of output')
@@ -94,8 +94,10 @@ def main():
         chainer.cuda.get_device_from_id(args.gpu).use()
         model.to_gpu()
 
+        args.lr = args.lr * args.batch_size
         optimizer = chainer.optimizers.MomentumSGD(lr=args.lr, momentum=0.9)
     else:
+        args.lr = args.lr * args.batch_size
         optimizer = chainer.optimizers.MomentumSGD(lr=args.lr, momentum=0.9)
 
 
