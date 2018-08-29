@@ -11,9 +11,16 @@ import chainer
 import chainer.functions as F
 import chainer.links as L
 
+
+
 class LDP_Net(chainer.Chain):
 
-    def __init__(self, f_size=64, rgbd_channel=4, n_class=30, class_channel=3):
+    def __init__(self,
+                 f_size=64,
+                 rgbd_channel=4,
+                 n_class=30,
+                 class_channel=3,
+                 pretrained_model=None):
         self.f_size = f_size
         self.rgbd_channel = rgbd_channel
         self.n_class = n_class
@@ -80,6 +87,9 @@ class LDP_Net(chainer.Chain):
             self.conv6_2 = L.Convolution2D(64, 1, 1, initialW=initializer)
             self.bn6_1 = L.BatchNormalization(64)
             self.bn6_2 = L.BatchNormalization(1)
+
+        if pretrained_model is not None:
+            chainer.serializers.load_npz(pretrained_model, self)
 
     def __call__(self, x_1, x_2):
         

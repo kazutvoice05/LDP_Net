@@ -42,7 +42,8 @@ def main():
     parser.add_argument('--dataset_path', '-p', type=str,
                         default="/Users/Kazunari/projects/datasets/LocalDepthDataset")
     parser.add_argument('--gpu', '-g', type=int, default=-1)
-    parser.add_argument('--multi_gpu', '-m', action="store_true")
+    parser.add_argument('--multi_gpu', action="store_true")
+    parser.add_argument('--pretrained_model', '-m', default=None)
     parser.add_argument('--lr', '-l', type=float, default=1e-4)
     parser.add_argument('--batch_size', '-b', type=int, default=16)
     parser.add_argument('--out', '-o', default='train_result',
@@ -70,7 +71,10 @@ def main():
     rgbd_channel = 4
     n_class = train_data.get_class_id_size()
 
-    ldp_net = LDP_Net(f_size=64, rgbd_channel=rgbd_channel, n_class=n_class)
+    ldp_net = LDP_Net(f_size=64,
+                      rgbd_channel=rgbd_channel,
+                      n_class=n_class,
+                      pretrained_model=args.pretrained_model)
 
     model = LDPNetTrainChain(ldp_net)
 
