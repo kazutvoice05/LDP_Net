@@ -112,10 +112,16 @@ class LDDTransform(object):
 
         class_vector = np.zeros([self.class_id_size, self.input_roi_size[0], self.input_roi_size[1]], dtype=np.float32)
         class_vector[class_id, :, :] = 1
-
+        """
         x_1 = np.expand_dims(np.concatenate([roi_img, roi_pred_depth], axis=0), axis=0)
         x_2 = np.expand_dims(class_vector, axis=0)
         t = np.expand_dims(roi_depth, axis=0)
         mask = np.expand_dims(mask, axis=0)
+        """
+
+        x_1 = np.concatenate([roi_img, roi_pred_depth], axis=0)
+        x_2 = class_vector
+        t = roi_depth
+        mask = mask
 
         return x_1, x_2, t, mask

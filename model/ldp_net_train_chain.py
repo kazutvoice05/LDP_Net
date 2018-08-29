@@ -24,10 +24,6 @@ class LDPNetTrainChain(chainer.Chain):
             self.ldp_net = ldp_net
 
     def __call__(self, x_1, x_2, t, mask):
-        x_1 = x_1[0]
-        x_2 = x_2[0]
-        t = t[0]
-        mask = mask[0]
 
         self.y = self.ldp_net(x_1, x_2)
 
@@ -75,28 +71,27 @@ class LDPNetTrainChain(chainer.Chain):
         mask_grad_x = F.floor(F.convolution_2d(mask.astype(dtype), kernel_grad_x))
         mask_grad_y = F.floor(F.convolution_2d(mask.astype(dtype), kernel_grad_y))
 
-        # Do not calculate grad_loss when all elements are invalid.
+        # Avoid zero dividing when all elements in mask are False.
         sum_mask_grad_x = F.sum(mask_grad_x)
         sum_mask_grad_y = F.sum(mask_grad_y)
+        sum_mask_grad_x.data = max(xp.asarray([1], dtype=xp.float32), sum_mask_grad_x.data)
+        sum_mask_grad_y.data = max(xp.asarray([1], dtype=xp.float32), sum_mask_grad_y.data)
 
-        if sum_mask_grad_x.data != 0 and sum_mask_grad_y.data != 0:
-            inv_valid_grads_x = xp.array(1, dtype) / sum_mask_grad_x
-            inv_valid_grads_y = xp.array(1, dtype) / sum_mask_grad_y
+        inv_valid_grads_x = xp.array(1, dtype) / sum_mask_grad_x
+        inv_valid_grads_y = xp.array(1, dtype) / sum_mask_grad_y
 
-            grad_diff_x = F.where(
-                F.cast(mask_grad_x, bool),
-                F.squared_error(y_grad_x, t_grad_x),
-                xp.zeros(t_grad_x.shape, dtype))
-            grad_diff_y = F.where(
-                F.cast(mask_grad_y, bool),
-                F.squared_error(y_grad_y, t_grad_y),
-                xp.zeros(t_grad_y.shape, dtype))
+        grad_diff_x = F.where(
+            F.cast(mask_grad_x, bool),
+            F.squared_error(y_grad_x, t_grad_x),
+            xp.zeros(t_grad_x.shape, dtype))
+        grad_diff_y = F.where(
+            F.cast(mask_grad_y, bool),
+            F.squared_error(y_grad_y, t_grad_y),
+            xp.zeros(t_grad_y.shape, dtype))
 
-            grad_loss_x = F.scale(F.sum(grad_diff_x), inv_valid_grads_x, axis=0)
-            grad_loss_y = F.scale(F.sum(grad_diff_y), inv_valid_grads_y, axis=0)
+        grad_loss_x = F.scale(F.sum(grad_diff_x), inv_valid_grads_x, axis=0)
+        grad_loss_y = F.scale(F.sum(grad_diff_y), inv_valid_grads_y, axis=0)
 
-            grad_loss = grad_loss_x + grad_loss_y
-        else:
-            grad_loss = 0
+        grad_loss = grad_loss_x + grad_loss_y
 
         return depth_loss + grad_loss
