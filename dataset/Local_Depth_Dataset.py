@@ -29,6 +29,8 @@ class LocalDepthDataset(chainer.dataset.DatasetMixin):
     sun_predicted_region = (11, 13, 216, 292)
     sun_depth_scale = 10000
 
+    eigen_depth_scale = 0.1
+
     def __init__(self, data_dir, mode="train"):
         self.data_dir = data_dir
         self.mode = mode
@@ -54,21 +56,17 @@ class LocalDepthDataset(chainer.dataset.DatasetMixin):
         img_path = os.path.join(self.data_dir, self.rois[i]["image_path"])
         img = cv2.imread(img_path)
         img = np.asarray(img, dtype=np.float32)
-
         img = np.clip(img, 0, 255)
 
-        # Subtract mean and standardize using std
-        img_std = ((img - self.image_mean) / self.image_stddev)
-
         pred_depth_path = os.path.join(self.data_dir, self.rois[i]["pred_depth_path"])
-        pred_depth = np.load(pred_depth_path)
+        pred_depth = np.load(pred_depth_path) * self.eigen_depth_scale
 
         depth_path = os.path.join(self.data_dir, self.rois[i]["depth_path"])
         depth = cv2.imread(depth_path, cv2.IMREAD_UNCHANGED)
         depth = np.asarray(depth, dtype=np.float32)
         depth = depth / self.sun_depth_scale  # PNG value -> depth value (unit : meter)
 
-        return img_std, pred_depth, depth
+        return img, pred_depth, depth
 
     def get_example(self, i):
         if i >= len(self):
@@ -78,9 +76,6 @@ class LocalDepthDataset(chainer.dataset.DatasetMixin):
         class_id = self.rois[i]["class_id"] - 1  # 1 ~ n -> 0 ~ n-1
 
         img, pred_depth, depth = self.get_images(i)
-
-        mx = img.max()
-        mn = img.min()
 
         return roi, class_id, img, pred_depth, depth
 

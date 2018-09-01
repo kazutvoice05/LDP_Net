@@ -77,6 +77,18 @@ class LDDTransform(object):
 
         return dst_img, dst_dpt, dst_pred_dpt
 
+    def get_cropped_roi_data(self, img, depth, pred_depth, roi):
+        # Convert roi (u, v, w, h) -> local_region ( u1, v1, u2, v2 )
+        roi_with_point = [roi[0], roi[1],
+                          roi[0] + roi[2], roi[1] + roi[3]]
+
+        resized_img, resized_depth, resized_roi = self.get_resized_data(img, depth, roi_with_point)
+        cropped_img, cropped_depth, cropped_roi = self.get_predicted_region_data(resized_img, resized_depth,
+                                                                                 resized_roi)
+        roi_img, roi_depth, roi_pred_depth = self.get_roi_data(cropped_img, cropped_depth, pred_depth, cropped_roi)
+
+        return roi_img, roi_depth, roi_pred_depth, cropped_roi
+
     def resize_to_input(self, img, depth, pred_depth):
         dst_img = cv2.resize(img, self.input_roi_size, interpolation=cv2.INTER_LINEAR)
         dst_depth = cv2.resize(depth, self.input_roi_size, interpolation=cv2.INTER_NEAREST)
@@ -95,16 +107,12 @@ class LDDTransform(object):
     def __call__(self, in_data):
         roi, class_id, img, pred_depth, depth = in_data
 
-        # Convert roi (u, v, w, h) -> local_region ( u1, v1, u2, v2 )
-        roi_with_point = [roi[0], roi[1],
-                          roi[0] + roi[2], roi[1] + roi[3]]
-
-        resized_img, resized_depth, resized_roi = self.get_resized_data(img, depth, roi_with_point)
-        cropped_img, cropped_depth, cropped_roi = self.get_predicted_region_data(resized_img, resized_depth,
-                                                                                 resized_roi)
-        roi_img, roi_depth, roi_pred_depth = self.get_roi_data(cropped_img, cropped_depth, pred_depth, cropped_roi)
+        roi_img, roi_depth, roi_pred_depth, _ = self.get_cropped_roi_data(img, depth, pred_depth, roi)
 
         roi_img, roi_depth, roi_pred_depth = self.resize_to_input(roi_img, roi_depth, roi_pred_depth)
+
+        # Subtract mean and standardize using std
+        roi_img_std = ((roi_img - self.image_mean) / self.image_stddev)
 
         # Create Mask
         eps = np.finfo(np.float32).eps
@@ -112,16 +120,11 @@ class LDDTransform(object):
 
         class_vector = np.zeros([self.class_id_size, self.input_roi_size[0], self.input_roi_size[1]], dtype=np.float32)
         class_vector[class_id, :, :] = 1
-        """
-        x_1 = np.expand_dims(np.concatenate([roi_img, roi_pred_depth], axis=0), axis=0)
-        x_2 = np.expand_dims(class_vector, axis=0)
-        t = np.expand_dims(roi_depth, axis=0)
-        mask = np.expand_dims(mask, axis=0)
-        """
 
-        x_1 = np.concatenate([roi_img, roi_pred_depth], axis=0)
-        x_2 = class_vector
+        img = roi_img_std
+        c_map = class_vector
+        pred_depth = roi_pred_depth
         t = roi_depth
         mask = mask
 
-        return x_1, x_2, t, mask
+        return img, pred_depth, c_map, t, mask

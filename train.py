@@ -22,6 +22,7 @@ import datetime
 import matplotlib
 
 import chainer
+from chainerui.extensions import CommandsExtension
 
 chainer.set_debug(True)
 
@@ -40,7 +41,7 @@ def main():
         description="Training script for LDP Net"
     )
     parser.add_argument('--dataset_path', '-p', type=str,
-                        default="/Users/Kazunari/projects/datasets/LocalDepthDataset")
+                        default="/home/takagi.kazunari/projects/datasets/LocalDepthDataset")
     parser.add_argument('--gpu', '-g', type=int, default=-1)
     parser.add_argument('--multi_gpu', action="store_true")
     parser.add_argument('--pretrained_model', '-m', default=None)
@@ -68,11 +69,11 @@ def main():
     train_data = LocalDepthDataset(args.dataset_path, mode="train")
     test_data = LocalDepthDataset(args.dataset_path, mode="test")
 
-    rgbd_channel = 4
+    rgb_channel = 3
     n_class = train_data.get_class_id_size()
 
     ldp_net = LDP_Net(f_size=64,
-                      rgbd_channel=rgbd_channel,
+                      rgb_channel=rgb_channel,
                       n_class=n_class,
                       pretrained_model=args.pretrained_model)
 
@@ -125,7 +126,7 @@ def main():
     trainer = training.Trainer(updater, (args.iteration, 'iteration'), out=out_dir)
 
     trainer.extend(
-        extensions.snapshot_object(model.ldp_net, 'snapshot_model.npz'),
+        extensions.snapshot_object(model.ldp_net, 'model_{.updater.iteration}.npz'),
         trigger=(2000, "iteration"))
 
     log_interval = 25, 'iteration'
@@ -134,9 +135,11 @@ def main():
     trainer.extend(extensions.LogReport(trigger=log_interval))
     trainer.extend(extensions.observe_lr(), trigger=log_interval)
     trainer.extend(extensions.PrintReport(
-        ['iteration', 'epoch', 'elapsed_time', 'lr', 'main/loss']),
+        ['iteration', 'epoch', 'elapsed_time', 'lr', 'main/loss', 'main/LDP_rmse', 'main/Eigen_rmse']),
         trigger=print_interval)
-    trainer.extend(extensions.ProgressBar(update_interval=10))
+    trainer.extend(extensions.ProgressBar(update_interval=5))
+
+    trainer.extend(CommandsExtension())
 
     trainer.run()
 

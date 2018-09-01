@@ -17,112 +17,100 @@ class LDP_Net(chainer.Chain):
 
     def __init__(self,
                  f_size=64,
-                 rgbd_channel=4,
+                 rgb_channel=3,
                  n_class=30,
                  class_channel=3,
                  pretrained_model=None):
         self.f_size = f_size
-        self.rgbd_channel = rgbd_channel
+        self.rgb_channel = rgb_channel
         self.n_class = n_class
         self.class_channel = class_channel
-        self.main_input_channel = rgbd_channel + self.class_channel
+        self.main_input_channel = rgb_channel + self.class_channel
 
         initializer = chainer.initializers.Normal()
 
         super(LDP_Net, self).__init__()
         with self.init_scope():
-            self.conv0_1 = L.Convolution2D(rgbd_channel, rgbd_channel, 1, initialW=initializer)
-            self.conv0_2 = L.Convolution2D(self.n_class, self.class_channel, 1, initialW=initializer)
-            self.conv0_3 = L.Convolution2D(self.main_input_channel, self.main_input_channel, 1, initialW=initializer)
-            self.bn0_1 = L.BatchNormalization(rgbd_channel)
-            self.bn0_2 = L.BatchNormalization(self.class_channel)
-            self.bn0_3 = L.BatchNormalization(self.main_input_channel)
-
-            self.conv1_1 = L.Convolution2D(self.main_input_channel, 64, 3, pad=1, initialW=initializer)
+            self.conv1_1 = L.Convolution2D(self.rgb_channel, 64, 3, pad=1, initialW=initializer)
             self.conv1_2 = L.Convolution2D(64, 64, 3, pad=1, initialW=initializer)
-            self.conv1_3 = L.DilatedConvolution2D(64, 64, 3, pad=2, dilate=2, initialW=initializer)
-            self.conv1_4 = L.Convolution2D(128, 64, 3, pad=1, initialW=initializer)
+            self.conv1_3 = L.Convolution2D(64, 128, 5, pad=2, initialW=initializer)
             self.bn1_1 = L.BatchNormalization(64)
             self.bn1_2 = L.BatchNormalization(64)
-            self.bn1_3 = L.BatchNormalization(64)
-            self.bn1_4 = L.BatchNormalization(64)
+            self.bn1_3 = L.BatchNormalization(128)
 
-            self.conv2_1 = L.Convolution2D(64, 64, 3, pad=1, initialW=initializer)
-            self.conv2_2 = L.Convolution2D(64, 64, 3, pad=1, initialW=initializer)
-            self.conv2_3 = L.DilatedConvolution2D(64, 64, 5, pad=4, dilate=2, initialW=initializer)
-            self.conv2_4 = L.Convolution2D(128, 64, 3, pad=1, initialW=initializer)
-            self.bn2_1 = L.BatchNormalization(64)
-            self.bn2_2 = L.BatchNormalization(64)
-            self.bn2_3 = L.BatchNormalization(64)
-            self.bn2_4 = L.BatchNormalization(64)
+            self.conv2_1 = L.Convolution2D(128, 128, 3, pad=1, initialW=initializer)
+            self.conv2_2 = L.Convolution2D(128, 128, 3, pad=1, initialW=initializer)
+            self.conv2_3 = L.Convolution2D(128, 256, 5, pad=2, initialW=initializer)
+            self.bn2_1 = L.BatchNormalization(128)
+            self.bn2_2 = L.BatchNormalization(128)
+            self.bn2_3 = L.BatchNormalization(256)
 
-            self.conv3_1 = L.Convolution2D(64, 64, 3, pad=1, initialW=initializer)
-            self.conv3_2 = L.Convolution2D(64, 64, 3, pad=1, initialW=initializer)
-            self.conv3_3 = L.DilatedConvolution2D(64, 64, 5, pad=4, dilate=2, initialW=initializer)
-            self.conv3_4 = L.Convolution2D(128, 64, 3, pad=1, initialW=initializer)
-            self.bn3_1 = L.BatchNormalization(64)
-            self.bn3_2 = L.BatchNormalization(64)
-            self.bn3_3 = L.BatchNormalization(64)
-            self.bn3_4 = L.BatchNormalization(64)
+            self.conv3_1 = L.Convolution2D(256, 256, 3, pad=1, initialW=initializer)
+            self.conv3_2 = L.Convolution2D(256, 256, 3, pad=1, initialW=initializer)
+            self.conv3_3 = L.Convolution2D(256, 512, 5, pad=2, initialW=initializer)
+            self.bn3_1 = L.BatchNormalization(256)
+            self.bn3_2 = L.BatchNormalization(256)
+            self.bn3_3 = L.BatchNormalization(512)
 
-            self.conv4_1 = L.Convolution2D(64, 64, 3, pad=1, initialW=initializer)
-            self.conv4_2 = L.Convolution2D(64, 64, 3, pad=1, initialW=initializer)
-            self.conv4_3 = L.DilatedConvolution2D(64, 64, 5, pad=4, dilate=2, initialW=initializer)
-            self.conv4_4 = L.Convolution2D(128, 64, 3, pad=1, initialW=initializer)
-            self.bn4_1 = L.BatchNormalization(64)
-            self.bn4_2 = L.BatchNormalization(64)
-            self.bn4_3 = L.BatchNormalization(64)
-            self.bn4_4 = L.BatchNormalization(64)
+            self.conv4_1 = L.Convolution2D(512, 512, 3, pad=1, initialW=initializer)
+            self.conv4_2 = L.Convolution2D(512, 512, 3, pad=1, initialW=initializer)
+            self.conv4_3 = L.Convolution2D(512, 512, 5, pad=2, initialW=initializer)
+            self.bn4_1 = L.BatchNormalization(512)
+            self.bn4_2 = L.BatchNormalization(512)
+            self.bn4_3 = L.BatchNormalization(512)
 
-            self.conv5_1 = L.Convolution2D(64, 64, 3, pad=1, initialW=initializer)
-            self.conv5_2 = L.Convolution2D(64, 64, 3, pad=1, initialW=initializer)
-            self.conv5_3 = L.DilatedConvolution2D(64, 64, 5, pad=4, dilate=2, initialW=initializer)
-            self.conv5_4 = L.Convolution2D(128, 64, 3, pad=1, initialW=initializer)
-            self.bn5_1 = L.BatchNormalization(64)
-            self.bn5_2 = L.BatchNormalization(64)
+            self.conv_c1 = L.Convolution2D(self.n_class, 3, 1, initialW=initializer)
+            self.conv_c2 = L.Convolution2D(3, 64, 1, initialW=initializer)
+            self.conv_c3 = L.Convolution2D(64, 64, 3, pad=1, initialW=initializer)
+            self.bn_c1 = L.BatchNormalization(3)
+            self.bn_c2 = L.BatchNormalization(64)
+            self.bn_c3 = L.BatchNormalization(64)
+
+            self.conv5_1 = L.Convolution2D(576, 576, 1, initialW=initializer)
+            self.conv5_2 = L.Convolution2D(576, 128, 3, pad=1, initialW=initializer)
+            self.conv5_3 = L.Convolution2D(128, 64, 3, pad=1, initialW=initializer)
+            self.bn5_1 = L.BatchNormalization(576)
+            self.bn5_2 = L.BatchNormalization(128)
             self.bn5_3 = L.BatchNormalization(64)
-            self.bn5_4 = L.BatchNormalization(64)
 
-            self.conv6_1 = L.Convolution2D(64, 64, 1, initialW=initializer)
-            self.conv6_2 = L.Convolution2D(64, 1, 1, initialW=initializer)
-            self.bn6_1 = L.BatchNormalization(64)
-            self.bn6_2 = L.BatchNormalization(1)
+            self.conv6_1 = L.Convolution2D(65, 65, 5, pad=2, initialW=initializer)
+            self.conv6_2 = L.Convolution2D(65, 1, 5, pad=2, initialW=initializer)
+            self.bn6_1 = L.BatchNormalization(65)
 
         if pretrained_model is not None:
             chainer.serializers.load_npz(pretrained_model, self)
 
-    def __call__(self, x_1, x_2):
-        
-        h = F.relu(self.bn0_1(self.conv0_1(x_1)))
-        d_h = F.relu(self.bn0_2(self.conv0_2(x_2)))
-        h = F.relu(self.bn0_3(self.conv0_3(F.concat([h, d_h]))))
+    def __call__(self, img, depth, c_map):
 
-        h = F.relu(self.bn1_1(self.conv1_1(h)))
+        h = F.relu(self.bn1_1(self.conv1_1(img)))
         h = F.relu(self.bn1_2(self.conv1_2(h)))
-        d_h = F.relu(self.bn1_3(self.conv1_3(h)))
-        h = F.relu(self.bn1_4(self.conv1_4(F.concat([h, d_h]))))
+        h = F.relu(self.bn1_3(self.conv1_3(h)))
 
         h = F.relu(self.bn2_1(self.conv2_1(h)))
         h = F.relu(self.bn2_2(self.conv2_2(h)))
-        d_h = F.relu(self.bn2_3(self.conv2_3(h)))
-        h = F.relu(self.bn2_4(self.conv2_4(F.concat([h, d_h]))))
+        h = F.relu(self.bn2_3(self.conv2_3(h)))
 
         h = F.relu(self.bn3_1(self.conv3_1(h)))
         h = F.relu(self.bn3_2(self.conv3_2(h)))
-        d_h = F.relu(self.bn3_3(self.conv3_3(h)))
-        h = F.relu(self.bn3_4(self.conv3_4(F.concat([h, d_h]))))
+        h = F.relu(self.bn3_3(self.conv3_3(h)))
 
         h = F.relu(self.bn4_1(self.conv4_1(h)))
         h = F.relu(self.bn4_2(self.conv4_2(h)))
-        d_h = F.relu(self.bn4_3(self.conv4_3(h)))
-        h = F.relu(self.bn4_4(self.conv4_4(F.concat([h, d_h]))))
+        h = F.relu(self.bn4_3(self.conv4_3(h)))
 
-        h = F.relu(self.bn5_1(self.conv5_1(h)))
-        h = F.relu(self.bn5_2(self.conv5_2(h)))
-        d_h = F.relu(self.bn5_3(self.conv5_3(h)))
-        h = F.relu(self.bn5_4(self.conv5_4(F.concat([h, d_h]))))
+        c_h = F.relu(self.bn_c1(self.conv_c1(c_map)))
+        c_h = F.relu(self.bn_c2(self.conv_c2(c_h)))
+        c_h = F.relu(self.bn_c3(self.conv_c3(c_h)))
 
-        h = self.bn6_1(self.conv6_1(h))
-        pred = self.bn6_2(self.conv6_2(h))
+        f_h = F.concat([h, c_h])
+
+        f_h = F.relu(self.bn5_1(self.conv5_1(f_h)))
+        f_h = F.relu(self.bn5_2(self.conv5_2(f_h)))
+        f_h = F.relu(self.bn5_3(self.conv5_3(f_h)))
+
+        f_h = F.concat([f_h, depth])
+
+        f_h = F.relu(self.bn6_1(self.conv6_1(f_h)))
+        pred = self.conv6_2(f_h)
 
         return pred

@@ -23,14 +23,18 @@ class LDPNetTrainChain(chainer.Chain):
         with self.init_scope():
             self.ldp_net = ldp_net
 
-    def __call__(self, x_1, x_2, t, mask):
+    def __call__(self, img, pred_depth, c_map, t, mask):
 
-        self.y = self.ldp_net(x_1, x_2)
+        self.y = self.ldp_net(img, pred_depth, c_map)
 
         # TODO : Refine Loss Function (Now, Kaneko's Implimentation of Loss is used.)
         self.loss = self.ldp_net_loss(self.y, t, mask)
 
-        chainer.reporter.report({'loss': self.loss}, self)
+        y_e, b_e = self.rmse(self.y, pred_depth, t, mask)
+
+        chainer.reporter.report({'loss': self.loss,
+                                 'LDP_rmse': y_e,
+                                 'Eigen_rmse': b_e}, self)
 
         return self.loss
 
@@ -95,3 +99,34 @@ class LDPNetTrainChain(chainer.Chain):
         grad_loss = grad_loss_x + grad_loss_y
 
         return depth_loss + grad_loss
+
+    def rmse(self, y, b, t, mask):
+        y = np.asarray(cuda.to_cpu(y.data), dtype=np.float32)
+        b = np.asarray(cuda.to_cpu(b), dtype=np.float32)
+        t = np.asarray(cuda.to_cpu(t), dtype=np.float32)
+        mask = np.asarray(cuda.to_cpu(mask), dtype=np.float32)
+        y_e = []
+        b_e = []
+
+        for i in range(y.shape[0]):
+            y_elem_error = np.abs(np.diff([y[i, :, :, :], t[i, :, :, :]], axis=0))
+            b_elem_error = np.abs(np.diff([b[i, :, :, :], t[i, :, :, :]], axis=0))
+
+            valid_pixel = np.count_nonzero(mask)
+
+            y_masked_error = np.where(mask, y_elem_error, np.zeros_like(y_elem_error, dtype=np.float32))
+            b_masked_error = np.where(mask, b_elem_error, np.zeros_like(b_elem_error, dtype=np.float32))
+
+            y_elem_error = np.sum(y_masked_error) / valid_pixel
+            b_elem_error = np.sum(b_masked_error) / valid_pixel
+
+            y_e.append(y_elem_error)
+            b_e.append(b_elem_error)
+
+        y_e = np.asarray(y_e, dtype=np.float32)
+        b_e = np.asarray(b_e, dtype=np.float32)
+
+        y_e = np.sum(y_e) / y.shape[0]
+        b_e = np.sum(b_e) / b.shape[0]
+
+        return y_e, b_e
