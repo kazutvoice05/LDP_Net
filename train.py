@@ -32,9 +32,9 @@ from chainer.training import extensions
 
 from model.ldp_net import LDP_Net
 from model.ldp_net_train_chain import LDPNetTrainChain
-
 from dataset.Local_Depth_Dataset import LocalDepthDataset
 from dataset.LDD_Transform import LDDTransform
+from evaluation.ldp_evaluator import LDPNetEvaluator
 
 def main():
     parser = argparse.ArgumentParser(
@@ -54,6 +54,7 @@ def main():
     parser.add_argument('--seed', '-s', type=int, default=0)
     parser.add_argument('--step_size', '-ss', type=int, default=50000)
     parser.add_argument('--iteration', '-i', type=int, default=50000)
+    parser.add_argument('--normalize_depth', '-n', action='store_true')
     args = parser.parse_args()
 
     np.random.seed(args.seed)
@@ -67,13 +68,13 @@ def main():
         out_dir = osp.join(args.out, "{0:%Y%m%d_%H%M%S}".format(datetime.datetime.now()))
 
     train_data = LocalDepthDataset(args.dataset_path, mode="train")
-    test_data = LocalDepthDataset(args.dataset_path, mode="test")
+    #test_data = LocalDepthDataset(args.dataset_path, mode="test")
 
-    rgb_channel = 3
+    rgbd_channel = 4
     n_class = train_data.get_class_id_size()
 
     ldp_net = LDP_Net(f_size=64,
-                      rgb_channel=rgb_channel,
+                      rgbd_channel=rgbd_channel,
                       n_class=n_class,
                       pretrained_model=args.pretrained_model)
 
@@ -107,7 +108,6 @@ def main():
 
 
     optimizer.setup(model)
-    # TODO : Confirm that add_hook is needed.
     optimizer.add_hook(chainer.optimizer.optimizer_hooks.WeightDecay(rate=0.0005))
 
     train_data = TransformDataset(train_data, LDDTransform(train_data))
@@ -119,6 +119,8 @@ def main():
         train_data = chainermn.scatter_dataset(train_data, comm, shuffle=True)
 
     train_iter = chainer.iterators.SerialIterator(train_data, args.batch_size)
+    test_iter = chainer.iterators.SerialIterator(train_data, args.batch_size,
+                                                 shuffle=False, repeat=False)
 
     updater = chainer.training.updaters.StandardUpdater(
         train_iter, optimizer, device=args.gpu)
@@ -135,9 +137,16 @@ def main():
     trainer.extend(extensions.LogReport(trigger=log_interval))
     trainer.extend(extensions.observe_lr(), trigger=log_interval)
     trainer.extend(extensions.PrintReport(
-        ['iteration', 'epoch', 'elapsed_time', 'lr', 'main/loss', 'main/LDP_rmse', 'main/Eigen_rmse']),
+        ['iteration', 'epoch', 'elapsed_time', 'lr',
+         'main/loss', 'main/depth_loss', 'main/grad_loss', 'main/triplet_loss',
+         'main/accuracy_gain', 'val/main/abs_rel', 'val/main/rmse']),
         trigger=print_interval)
     trainer.extend(extensions.ProgressBar(update_interval=5))
+
+    trainer.extend(LDPNetEvaluator(test_iter,
+                                   model.ldp_net,
+                                   device=args.gpu),
+                   trigger=(50, 'iteration'))
 
     trainer.extend(CommandsExtension())
 

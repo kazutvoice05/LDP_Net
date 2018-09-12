@@ -28,17 +28,23 @@ class LDPNetTrainChain(chainer.Chain):
         self.y = self.ldp_net(img, pred_depth, c_map)
 
         # TODO : Refine Loss Function (Now, Kaneko's Implimentation of Loss is used.)
-        self.loss = self.ldp_net_loss(self.y, t, mask)
+        depth_loss, grad_loss, triplet_loss = self.ldp_net_loss(self.y, pred_depth, t, mask)
+
+        self.loss = depth_loss + grad_loss + triplet_loss
 
         y_e, b_e = self.rmse(self.y, pred_depth, t, mask)
 
         chainer.reporter.report({'loss': self.loss,
+                                 'depth_loss': depth_loss,
+                                 'grad_loss': grad_loss,
+                                 'triplet_loss': triplet_loss,
+                                 'accuracy_gain': b_e - y_e,
                                  'LDP_rmse': y_e,
                                  'Eigen_rmse': b_e}, self)
 
         return self.loss
 
-    def ldp_net_loss(self, y, t, mask):
+    def ldp_net_loss(self, y, pred_depth, t, mask):
         dtype = t.dtype
         xp = chainer.cuda.get_array_module(t)
 
@@ -98,7 +104,13 @@ class LDPNetTrainChain(chainer.Chain):
 
         grad_loss = grad_loss_x + grad_loss_y
 
-        return depth_loss + grad_loss
+        masked_y = F.where(mask, y, xp.zeros(t.shape, dtype))[0, 0]
+        masked_pred_depth = F.where(mask, pred_depth, xp.zeros(t.shape, dtype))[0, 0]
+
+        triplet_loss = F.triplet(masked_y, t[0, 0], masked_pred_depth) / 100
+        triplet_loss = 0
+
+        return depth_loss, grad_loss, triplet_loss
 
     def rmse(self, y, b, t, mask):
         y = np.asarray(cuda.to_cpu(y.data), dtype=np.float32)

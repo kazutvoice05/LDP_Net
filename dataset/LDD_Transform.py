@@ -3,8 +3,7 @@
 """
 LDP_Net
 LDD_Transform
-
-created by Kazunari on 2018/08/23 
+created by Kazunari on 2018/08/23
 """
 
 import cv2
