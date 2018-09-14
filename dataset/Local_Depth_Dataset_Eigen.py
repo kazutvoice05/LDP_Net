@@ -22,9 +22,14 @@ class LocalDepthDataset(chainer.dataset.DatasetMixin):
     mean_color = np.array([110.43808, 116.54863, 125.91209], np.float32)
     image_mean = 117.63293
     image_stddev = 66.46351
-    image_size = (480, 640)
-    down_sampling_size = (240, 320)
+    sun_image_size = (480, 640)
+    sun_down_sampling_size = (240, 320)
+    sun_input_size = (228, 304)
+    sun_output_size = (109, 147)
+    sun_predicted_region = (11, 13, 216, 292)
     sun_depth_scale = 10000
+
+    eigen_depth_scale = 0.1
 
     def __init__(self, data_dir, mode="train"):
         self.data_dir = data_dir
@@ -54,7 +59,7 @@ class LocalDepthDataset(chainer.dataset.DatasetMixin):
         img = np.clip(img, 0, 255)
 
         pred_depth_path = os.path.join(self.data_dir, self.rois[i]["pred_depth_path"])
-        pred_depth = np.load(pred_depth_path)
+        pred_depth = np.load(pred_depth_path) * self.eigen_depth_scale
 
         depth_path = os.path.join(self.data_dir, self.rois[i]["depth_path"])
         depth = cv2.imread(depth_path, cv2.IMREAD_UNCHANGED)

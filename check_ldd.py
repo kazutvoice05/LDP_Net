@@ -16,19 +16,17 @@ from dataset.LDD_Transform import LDDTransform
 from dataset.Local_Depth_Dataset import LocalDepthDataset
 
 ldd = LocalDepthDataset("/Users/Kazunari/projects/datasets/LocalDepthDataset")
-ldd_transform = LDDTransform(ldd);
+ldd_transform = LDDTransform(ldd)
 
-train_data = chainer.datasets.TransformDataset(ldd, ldd_transform);
+train_data = chainer.datasets.TransformDataset(ldd, ldd_transform)
 
-input_channel = ldd.get_class_id_size() + 4
-ldp_net = LDP_Net(input_channel=input_channel)
-
-improper_data = train_data.get_example(3)
+rgbd_channel = 4
+ldp_net = LDP_Net(rgbd_channel=rgbd_channel)
 
 model = LDPNetTrainChain(ldp_net)
 
-x, t, mask = train_data.get_example(0)
+img, pred_depth, c_map, t, mask = train_data.get_example(0)
 
-loss = model(x, t, mask)
+loss = model(img, pred_depth, c_map, t, mask)
 
 print(loss)

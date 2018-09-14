@@ -41,7 +41,7 @@ def main():
         description="Training script for LDP Net"
     )
     parser.add_argument('--dataset_path', '-p', type=str,
-                        default="/home/takagi.kazunari/projects/datasets/LocalDepthDataset")
+                        default="/home/takagi.kazunari/projects/datasets/LocalDepthDataset_v2")
     parser.add_argument('--gpu', '-g', type=int, default=-1)
     parser.add_argument('--multi_gpu', action="store_true")
     parser.add_argument('--pretrained_model', '-m', default=None)
@@ -68,7 +68,7 @@ def main():
         out_dir = osp.join(args.out, "{0:%Y%m%d_%H%M%S}".format(datetime.datetime.now()))
 
     train_data = LocalDepthDataset(args.dataset_path, mode="train")
-    #test_data = LocalDepthDataset(args.dataset_path, mode="test")
+    test_data = LocalDepthDataset(args.dataset_path, mode="test")
 
     rgbd_channel = 4
     n_class = train_data.get_class_id_size()
@@ -111,6 +111,7 @@ def main():
     optimizer.add_hook(chainer.optimizer.optimizer_hooks.WeightDecay(rate=0.0005))
 
     train_data = TransformDataset(train_data, LDDTransform(train_data))
+    test_data = TransformDataset(test_data, LDDTransform(test_data))
 
     if args.multi_gpu:
         if comm.rank != 0:
@@ -119,7 +120,7 @@ def main():
         train_data = chainermn.scatter_dataset(train_data, comm, shuffle=True)
 
     train_iter = chainer.iterators.SerialIterator(train_data, args.batch_size)
-    test_iter = chainer.iterators.SerialIterator(train_data, args.batch_size,
+    test_iter = chainer.iterators.SerialIterator(test_data, args.batch_size,
                                                  shuffle=False, repeat=False)
 
     updater = chainer.training.updaters.StandardUpdater(
