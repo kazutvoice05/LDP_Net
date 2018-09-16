@@ -101,6 +101,9 @@ class LDDTransform(object):
             roi_depth = (roi_depth - roi_depth.min()) / (roi_depth.max() - roi_depth.min())
             roi_pred_depth = (roi_pred_depth - roi_pred_depth.min()) / (roi_pred_depth.max() - roi_pred_depth.min())
 
+            roi_depth = roi_depth
+            roi_pred_depth = roi_pred_depth
+
         # Create Mask
         eps = np.finfo(np.float32).eps
         mask = eps <= roi_depth
