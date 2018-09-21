@@ -73,8 +73,7 @@ def main():
     rgbd_channel = 4
     n_class = train_data.get_class_id_size()
 
-    ldp_net = LDP_Net(f_size=64,
-                      rgbd_channel=rgbd_channel,
+    ldp_net = LDP_Net(rgbd_channel=rgbd_channel,
                       n_class=n_class,
                       pretrained_model=args.pretrained_model)
 
@@ -128,6 +127,8 @@ def main():
 
     trainer = training.Trainer(updater, (args.iteration, 'iteration'), out=out_dir)
 
+    trainer.extend(extensions.ExponentialShift('lr', 0.1), trigger=(35000, 'iteration'))
+
     trainer.extend(
         extensions.snapshot_object(model.ldp_net, 'model_{.updater.iteration}.npz'),
         trigger=(2000, "iteration"))
@@ -147,7 +148,7 @@ def main():
     trainer.extend(LDPNetEvaluator(test_iter,
                                    model.ldp_net,
                                    device=args.gpu),
-                   trigger=(50, 'iteration'))
+                   trigger=(2000, 'iteration'))
 
     trainer.extend(CommandsExtension())
 

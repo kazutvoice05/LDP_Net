@@ -76,12 +76,12 @@ class LDDTransform(object):
         dst_depth = cv2.resize(depth, self.input_roi_size, interpolation=cv2.INTER_NEAREST)
         dst_pred_depth = cv2.resize(pred_depth, self.input_roi_size, interpolation=cv2.INTER_NEAREST)
 
-        dst_img = np.asarray(dst_img, dtype=np.float32).transpose(2, 1, 0)
+        dst_img = np.asarray(dst_img, dtype=np.float32).transpose(2, 0, 1)
 
-        dst_depth = np.asarray(dst_depth, dtype=np.float32).transpose(1, 0)
+        dst_depth = np.asarray(dst_depth, dtype=np.float32)
         dst_depth = np.expand_dims(dst_depth, axis=0)
 
-        dst_pred_depth = np.asarray(dst_pred_depth, dtype=np.float32).transpose(1, 0)
+        dst_pred_depth = np.asarray(dst_pred_depth, dtype=np.float32)
         dst_pred_depth = np.expand_dims(dst_pred_depth, axis=0)
 
         return dst_img, dst_depth, dst_pred_depth

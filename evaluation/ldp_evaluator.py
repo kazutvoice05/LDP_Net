@@ -40,6 +40,7 @@ class LDPNetEvaluator(extensions.Evaluator):
 
         predictions = None
         ts = None
+        masks = None
         for batch in iter:
             img, pred_depth, c_map, t, mask = self.converter(batch, self.device)
 
@@ -47,15 +48,18 @@ class LDPNetEvaluator(extensions.Evaluator):
 
             y = chainer.cuda.to_cpu(y.data)
             t = chainer.cuda.to_cpu(t)
+            mask = chainer.cuda.to_cpu(mask)
 
             if predictions is None:
                 predictions = y
                 ts = t
+                masks = mask
             else:
                 predictions = np.concatenate([predictions, y])
                 ts = np.concatenate([ts, t])
+                masks = np.concatenate([masks, mask])
 
-        test_result = compute_metrics(predictions, ts)
+        test_result = compute_metrics(predictions, ts, masks)
 
         observation = {}
         with reporter.report_scope(observation):
