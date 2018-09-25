@@ -31,6 +31,7 @@ from chainer import training
 from chainer.training import extensions
 
 from model.ldp_net import LDP_Net
+from model.ldp_resnet import LDP_ResNet
 from model.ldp_net_train_chain import LDPNetTrainChain
 from dataset.Local_Depth_Dataset import LocalDepthDataset
 from dataset.LDD_Transform import LDDTransform
@@ -73,9 +74,8 @@ def main():
     rgbd_channel = 4
     n_class = train_data.get_class_id_size()
 
-    ldp_net = LDP_Net(rgbd_channel=rgbd_channel,
-                      n_class=n_class,
-                      pretrained_model=args.pretrained_model)
+    #ldp_net = LDP_Net(rgbd_channel=rgbd_channel,n_class=n_class,pretrained_model=args.pretrained_model)
+    ldp_net = LDP_ResNet(pretrained_model=args.pretrained_model)
 
     model = LDPNetTrainChain(ldp_net)
 
@@ -109,8 +109,8 @@ def main():
     optimizer.setup(model)
     optimizer.add_hook(chainer.optimizer.optimizer_hooks.WeightDecay(rate=0.0005))
 
-    train_data = TransformDataset(train_data, LDDTransform(train_data))
-    test_data = TransformDataset(test_data, LDDTransform(test_data))
+    train_data = TransformDataset(train_data, LDDTransform(train_data, normalize=args.normalize_depth))
+    test_data = TransformDataset(test_data, LDDTransform(test_data, normalize=args.normalize_depth))
 
     if args.multi_gpu:
         if comm.rank != 0:

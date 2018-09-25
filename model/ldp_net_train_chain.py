@@ -13,6 +13,11 @@ import chainer
 from chainer.backends import cuda
 import chainer.functions as F
 
+from chainercv.links.model.resnet import ResNet50
+
+from .ldp_resnet import LDP_ResNet
+from .copy_model import copy_model
+
 class LDPNetTrainChain(chainer.Chain):
     """
     Calculate losses for LDP Net and report them.
@@ -22,6 +27,13 @@ class LDPNetTrainChain(chainer.Chain):
         super(LDPNetTrainChain, self).__init__()
         with self.init_scope():
             self.ldp_net = ldp_net
+        if isinstance(ldp_net, LDP_ResNet):
+            if ldp_net.pretrained_model:
+                chainer.serializers.load_npz(ldp_net.pretrained_model, self.ldp_net)
+            else:
+                resnet50 = ResNet50(arch='he')
+                chainer.serializers.load_npz(ldp_net.image_net_model_path, resnet50)
+                copy_model(resnet50, self.ldp_net)
 
     def __call__(self, img, pred_depth, c_map, t, mask):
 
