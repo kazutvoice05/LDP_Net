@@ -20,6 +20,7 @@ class LDDTransform(object):
         self.image_size = localDepthDataset.image_size
         self.down_sampling_size = localDepthDataset.down_sampling_size
 
+        self.image_sizse = (640, 480)
         self.input_roi_size = (64, 64)
         self.class_id_size = localDepthDataset.get_class_id_size()
         self.normalize = normalize

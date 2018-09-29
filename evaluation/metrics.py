@@ -27,6 +27,14 @@ def linear_root_mean_squared_error(y, t, mask, count):
     return diff
 
 
+def linear_mean_error(y, t, mask, count):
+    d = np.abs(y - t)
+    d = d * mask
+
+    diff = np.sum(d) / count
+    return diff
+
+
 def log10_error(y, t, mask, count):
     diff = np.absolute(np.log10(y) - np.log10(t))
     diff = diff * mask

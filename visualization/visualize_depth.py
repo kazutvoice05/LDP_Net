@@ -13,14 +13,16 @@ import matplotlib
 matplotlib.use("Agg")
 
 import argparse
-import sys
-sys.path.append(".")
-import numpy as np
 import os.path as osp
 import os
+import sys
+sys.path.append(".")
+sys.path.append(osp.join(osp.dirname(__file__), ".."))
+import numpy as np
 import cv2
 import pickle
 import datetime
+from tqdm import tqdm
 
 import matplotlib
 
@@ -67,16 +69,19 @@ def main():
     out_dir = os.path.join(out_dir, "images")
 
     rgb_dir = os.path.join(out_dir, "rgb")
-    depth_dir = os.path.join(out_dir, "depth")
+    pred_dir = os.path.join(out_dir, "pred")
     laina_dir = os.path.join(out_dir, "laina")
     gt_dir = os.path.join(out_dir, "gt")
 
     os.makedirs(out_dir, exist_ok=True)
 
     os.makedirs(rgb_dir, exist_ok=True)
-    os.makedirs(depth_dir, exist_ok=True)
-    os.makedirs(laina_dir, exist_ok=True)
-    os.makedirs(gt_dir, exist_ok=True)
+    os.makedirs(osp.join(pred_dir, "image"), exist_ok=True)
+    os.makedirs(osp.join(pred_dir, "npy"), exist_ok=True)
+    os.makedirs(osp.join(laina_dir, "image"), exist_ok=True)
+    os.makedirs(osp.join(laina_dir, "npy"), exist_ok=True)
+    os.makedirs(osp.join(gt_dir, "image"), exist_ok=True)
+    os.makedirs(osp.join(gt_dir, "npy"), exist_ok=True)
 
     test_data = LocalDepthDataset(args.dataset_path, mode="test")
     transform = LDDTransform(test_data)
@@ -91,7 +96,7 @@ def main():
         chainer.cuda.get_device_from_id(args.gpu).use()
         model.to_gpu()
 
-    for i in range(len(test_data)):
+    for i in tqdm(range(len(test_data))):
         roi, class_id, img, pred_depth, depth = test_data.get_example(i)
 
         roi_img, roi_depth, roi_pred_depth, t_roi = transform.get_cropped_roi_data(img, depth, pred_depth, roi)
@@ -109,23 +114,37 @@ def main():
 
         y = model.ldp_net(in_img, in_pred_depth, None)
 
+        # visualize pred
         y = chainer.cuda.to_cpu(y.data)
-        y = y[0, 0].transpose(1, 0)
-        y = cv2.resize(y, (roi_img.shape[1], roi_img.shape[0]), interpolation=cv2.INTER_NEAREST)
+        y = y[0, 0]
+        #y = cv2.resize(y, (roi_img.shape[1], roi_img.shape[0]), interpolation=cv2.INTER_NEAREST)
+
+        y = np.array(y, dtype=np.float32)
+        np.save(osp.join(pred_dir, "npy", str(i+1).zfill(6)), y)
+
         y = ((y - y.min()) / (y.max() - y.min())) * 255
         y = np.asarray(y, dtype=np.uint8)
-        cv2.imwrite(osp.join(depth_dir, str(i+1).zfill(6) + ".png"), y)
+        cv2.imwrite(osp.join(pred_dir, "image", str(i+1).zfill(6) + ".png"), y)
 
+        # save rgb roi image
         cv2.imwrite(osp.join(rgb_dir, str(i+1).zfill(6) + ".png"), roi_img)
 
+        # visualize gt
+        roi_depth = cv2.resize(roi_depth,(64, 64), interpolation=cv2.INTER_NEAREST)
+        np.save(osp.join(gt_dir, "npy", str(i + 1).zfill(6)), roi_depth)
         roi_depth = ((roi_depth - roi_depth.min()) / (roi_depth.max() - roi_depth.min())) * 255
-        cv2.imwrite(osp.join(gt_dir, str(i+1).zfill(6) + ".png"), roi_depth)
+        cv2.imwrite(osp.join(gt_dir, "image", str(i+1).zfill(6) + ".png"), roi_depth)
 
+        # visualize laina
         in_pred_depth = chainer.cuda.to_cpu(in_pred_depth)
-        in_pred_depth = in_pred_depth[0, 0].transpose(1, 0)
-        in_pred_depth = cv2.resize(in_pred_depth, (roi_img.shape[1], roi_img.shape[0]), interpolation=cv2.INTER_NEAREST)
+        in_pred_depth = in_pred_depth[0, 0]
+        #in_pred_depth = cv2.resize(in_pred_depth, (roi_img.shape[1], roi_img.shape[0]), interpolation=cv2.INTER_NEAREST)
+
+        in_pred_depth = np.array(in_pred_depth, dtype=np.float32)
+        np.save(osp.join(laina_dir, "npy", str(i + 1).zfill(6)), in_pred_depth)
+
         in_pred_depth = ((in_pred_depth - in_pred_depth.min()) / (in_pred_depth.max() - in_pred_depth.min())) * 255
-        cv2.imwrite(osp.join(laina_dir, str(i+1).zfill(6) + ".png"), in_pred_depth)
+        cv2.imwrite(osp.join(laina_dir, "image", str(i+1).zfill(6) + ".png"), in_pred_depth)
 
 
 if __name__ == "__main__":

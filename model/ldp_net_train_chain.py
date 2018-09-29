@@ -35,7 +35,7 @@ class LDPNetTrainChain(chainer.Chain):
                 chainer.serializers.load_npz(ldp_net.image_net_model_path, resnet50)
                 copy_model(resnet50, self.ldp_net)
 
-    def __call__(self, img, pred_depth, c_map, t, mask):
+    def __call__(self, img, pred_depth, c_map, t, mask, roi):
 
         self.y = self.ldp_net(img, pred_depth, c_map)
 

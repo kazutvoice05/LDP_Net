@@ -63,6 +63,7 @@ class LDP_ResNet(PickableSequentialChain):
     sunrgbd_mean = np.array([125.91209, 116.54863, 110.43808],
                             dtype=np.float32)[:, np.newaxis, np.newaxis]
 
+    #image_net_model_path = "/home/takagi.kazunari/projects/LDP_Net/model/pre_trained_models/resnet50_imagenet_converted_2018_03_07.npz"
     image_net_model_path = "/Users/Kazunari/projects/taurus/LDP_Net/model/pre_trained_models/resnet50_imagenet_converted_2018_03_07.npz"
 
     def __init__(self, n_class = None,
@@ -94,7 +95,10 @@ class LDP_ResNet(PickableSequentialChain):
             self.up_conv1 = UpBlock(256, 128)
             self.up_conv2 = UpBlock(128, 64)
 
-            self.pred = L.Convolution2D(64, 1, 3, pad=1, initialW=initialW)
+            self.conv6 = Conv2DBNActiv(65, 65, 5, 1, 2, initialW=initialW)
+            self.conv7 = Conv2DBNActiv(65, 65, 5, 1, 2, initialW=initialW)
+
+            self.pred = L.Convolution2D(65, 1, 5, pad=2, initialW=initialW)
 
     def __call__(self, img, pred_depth, c_map, **kwargs):
         h = self.conv1(img)
@@ -106,6 +110,11 @@ class LDP_ResNet(PickableSequentialChain):
 
         h = self.up_conv1(h)
         h = self.up_conv2(h)
+
+        h = F.concat([h, pred_depth])
+
+        h = self.conv6(h)
+        h = self.conv7(h)
 
         pred = self.pred(h)
 
